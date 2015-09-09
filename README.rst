@@ -10,6 +10,14 @@ If you don't know what AB testing is, check out `wikipedia <http://en.wikipedia.
 
 Changelog
 ---------
+1.2.0 (repleo-fork)
+~~~~~
+Easier deployment in python3 environment without redis
+
+ - removed redis dependency for low traffic websites
+ - removed modeldict dependency
+
+
 1.1.1
 ~~~~~
 

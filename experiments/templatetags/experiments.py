@@ -7,6 +7,7 @@ from experiments.utils import participant
 from experiments.manager import experiment_manager
 from experiments import conf
 
+from experiments.models import Experiment
 from uuid import uuid4
 
 register = template.Library()
@@ -35,6 +36,7 @@ class ExperimentNode(template.Node):
         experiment = experiment_manager.get_experiment(self.experiment_name)
         if experiment:
             experiment.ensure_alternative_exists(self.alternative, self.weight)
+
 
         # Get User object
         if self.user_variable:

@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.serializers.json import DjangoJSONEncoder
 from django.conf import settings
+from django.db.models import F
 
 from jsonfield import JSONField
 
@@ -21,6 +22,73 @@ STATES = (
     (TRACK_STATE, 'Track'),
 )
 
+class Counter(models.Model):
+    key = models.CharField(primary_key=True, max_length=128)
+    hash = models.CharField( max_length=96)
+    field = models.CharField( max_length=20)
+    count = models.IntegerField(default=0,blank=False,null=False)
+
+class Count():    
+    @classmethod
+    def next(cls, hash="default", field="default", count = 1):
+        key = "%s:%s" % (hash, field)
+        try:
+            Counter.objects.filter(pk = key).update(count = (F('count') + count))
+            return Counter.objects.get(pk = key).count
+        except Counter.DoesNotExist:
+            return Counter.objects.create(key = key, hash=hash, field=field, count = count).count
+
+    @classmethod
+    def get(cls, hash="default", field="default"):
+        key = "%s:%s" % (hash, field)
+        try:
+            return Counter.objects.get(pk = key).count
+        except Counter.DoesNotExist:
+            return Counter.objects.create(key = key, hash=hash, field=field, count = 0).count
+
+    @classmethod
+    def getall(cls, hash="default"):
+        try:
+            return Counter.objects.filter(hash = hash)
+        except Counter.DoesNotExist:
+            return None
+
+
+    @classmethod
+    def delete(cls, hash="default"):
+        try:
+            objects = Counter.objects.filter(hash = hash)
+            
+            for o in objects:
+                o.delete()
+                
+            objects = Counter.objects.filter(hash = hash)
+            return None
+        except Counter.DoesNotExist:
+            return None
+
+    @classmethod
+    def deletefield(cls, hash="default", field="default"):
+        key = "%s:%s" % (hash, field)
+        try:
+            return Counter.objects.get(pk = key).delete()
+        except Counter.DoesNotExist:
+            return None
+        
+    @classmethod
+    def len(cls, hash="default"):
+        try:
+            return Counter.objects.filter(hash = hash).count()
+        except Counter.DoesNotExist:
+            return 0
+        
+    @classmethod
+    def next_hex(cls, key = 'default:default'):
+        return hex(Counter.next(key)).replace('0x', '').replace('L', '')
+    
+    def __unicode__(self):
+        return u'%s = %s' % (self.pk, self.count)
+    
 
 class Experiment(models.Model):
     name = models.CharField(primary_key=True, max_length=128)
@@ -65,13 +133,13 @@ class Experiment(models.Model):
 
     @property
     def default_alternative(self):
-        for alternative, alternative_conf in self.alternatives.iteritems():
+        for alternative, alternative_conf in self.alternatives.items():
             if alternative_conf.get('default'):
                 return alternative
         return conf.CONTROL_GROUP
 
     def set_default_alternative(self, alternative):
-        for alternative_name, alternative_conf in self.alternatives.iteritems():
+        for alternative_name, alternative_conf in self.alternatives.items():
             if alternative_name == alternative:
                 alternative_conf['default'] = True
             elif 'default' in alternative_conf:
@@ -81,7 +149,7 @@ class Experiment(models.Model):
         if all('weight' in alt for alt in self.alternatives.values()):
             return weighted_choice([(name, details['weight']) for name, details in self.alternatives.items()])
         else:
-            return random.choice(self.alternatives.keys())
+            return random.choice(list(self.alternatives.keys()))
 
     def __unicode__(self):
         return self.name
